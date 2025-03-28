@@ -7,68 +7,6 @@
   ansible.builtin.debug:
     var: entropy
 
-- name: Debian | Update cache
-  ansible.builtin.apt:
-    update_cache: yes
-    cache_valid_time: "{{ gpgkey_generate_apt_cache_valid_time | default('3600') }}"
-  when: ansible_os_family == 'Debian'
-  become: yes
-- name: Debian | Ensure have enough randomness
-  ansible.builtin.apt:
-    name:
-      - rng-tools
-      - gnupg
-      ## https://docs.ansible.com/ansible/become.html#becoming-an-unprivileged-user
-      - acl
-    state: present
-    update_cache: yes
-    cache_valid_time: "{{ gpg_apt_cache_valid_time }}"
-  when: >
-    (ansible_distribution == 'Debian' and ansible_distribution_version|int >= 7) or
-    (ansible_distribution == 'Ubuntu' and ansible_distribution_version|int >= 14)
-  become: yes
-  register: pkg_result
-  until: pkg_result is success
-- name: Debian | Ensure have enough randomness
-  ansible.builtin.apt:
-    name:
-      - rng-tools
-      - gnupg
-    state: present
-    update_cache: yes
-    cache_valid_time: "{{ gpg_apt_cache_valid_time }}"
-  when: >
-    (ansible_distribution == 'Debian' and ansible_distribution_version|int < 7) or
-    (ansible_distribution == 'Ubuntu' and ansible_distribution_version|int < 14)
-  become: yes
-  register: pkg_result
-  until: pkg_result is success
-
-- name: Redhat | Ensure have enough randomness
-  ansible.builtin.dnf:
-    name:
-      - haveged
-      - rng-tools
-      - gnupg
-      - acl
-    state: present
-    update_cache: yes
-  when: ansible_os_family == "RedHat"
-  become: yes
-  register: pkg_result
-  until: pkg_result is success
-- name: Enable haveged - redhat
-  ansible.builtin.service:
-    name: haveged
-    state: started
-    enabled: yes
-  become: yes
-  when: >
-    ansible_os_family == "RedHat" and
-    not (ansible_virtualization_type is defined and (
-        ansible_virtualization_type == "docker" or ansible_virtualization_type == "containerd"
-      )
-    )
 - name: Check entropy state
   ansible.builtin.command: "cat /proc/sys/kernel/random/entropy_avail"
   changed_when: false
@@ -123,7 +61,7 @@
     verbosity: 2
   no_log: "{{ gpg_no_log }}"
 
-- name: Generate gpg key  # noqa no-changed-when
+- name: Generate gpg key # noqa no-changed-when
   ansible.builtin.command: >
     gpg --batch --homedir "{{ gpg_home }}/.gnupg"
         --passphrase-file "{{ gpg_home + '/' + gpg_passphrase_file }}"
@@ -183,10 +121,10 @@
     dest: "{{ gpg_pulldir }}/"
     flat: "yes"
   with_items:
-    # - "{{ gpg_home }}/{{ gpg_privkeyfile }}"
-    # - "{{ gpg_home }}/{{ gpg_pubkeyfile }}"
-    - "{{ gpg_home }}/{{ gpg_pubkeyfileexport }}"
-    - "{{ gpg_home }}/{{ gpg_fingerprint }}"
+  # - "{{ gpg_home }}/{{ gpg_privkeyfile }}"
+  # - "{{ gpg_home }}/{{ gpg_pubkeyfile }}"
+  - "{{ gpg_home }}/{{ gpg_pubkeyfileexport }}"
+  - "{{ gpg_home }}/{{ gpg_fingerprint }}"
   when: gpg_pull is defined and gpg_pull
 
 - name: Fetch privatekey file to orchestrator
@@ -195,5 +133,5 @@
     dest: "{{ gpg_pulldir }}/"
     flat: "yes"
   with_items:
-    - "{{ gpg_home }}/{{ gpg_privkeyfile }}"
+  - "{{ gpg_home }}/{{ gpg_privkeyfile }}"
   when: gpg_pull is defined and gpg_pull and gpg_pull_privatekey is defined and gpg_pull_privatekey
